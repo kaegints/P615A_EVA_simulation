@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EVA Guided Case Simulation</title>
+  <style>
+    :root {
+      --bg: #f3f6f7;
+      --surface: #ffffff;
+      --surface-soft: #eef4f5;
+      --ink: #17313a;
+      --muted: #60757c;
+      --line: #d7e2e5;
+      --navy: #173c4a;
+      --teal: #007f79;
+      --teal-dark: #00635f;
+      --green: #347a4a;
+      --amber: #a96600;
+      --red: #b64040;
+      --blue: #315f8a;
+      --shadow: 0 14px 34px rgba(20, 55, 64, .09);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: rgba(243,246,247,.96);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line);
+    }
+    .topbar-inner {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      min-height: 66px;
+      display: grid;
+      grid-template-columns: minmax(210px, 1fr) minmax(280px, 1.5fr) auto;
+      align-items: center;
+      gap: 22px;
+    }
+    .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+    .brand-mark {
+      width: 40px; height: 40px; flex: 0 0 40px;
+      display: grid; place-items: center;
+      border-radius: 12px;
+      color: white; font-weight: 900; letter-spacing: -.04em;
+      background: linear-gradient(145deg, var(--navy), var(--teal));
+      box-shadow: 0 7px 18px rgba(0,127,121,.18);
+    }
+    .brand strong { display: block; font-size: 14px; }
+    .brand span { display: block; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .progress-wrap { min-width: 0; }
+    .progress-meta { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; font-size: 11px; color: var(--muted); }
+    .progress-meta strong { color: var(--ink); }
+    .progress-track { height: 7px; border-radius: 999px; overflow: hidden; background: #dfe7e9; }
+    .progress-fill { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--navy), var(--teal)); transition: width .3s ease; }
+
+    .btn {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 15px;
+      background: white;
+      color: var(--ink);
+      font-weight: 800;
+      transition: .16s ease;
+    }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); border-color: #9eb9bf; }
+    .btn.primary { background: var(--teal); color: white; border-color: var(--teal); }
+    .btn.primary:hover:not(:disabled) { background: var(--teal-dark); }
+    .btn.dark { background: var(--navy); color: white; border-color: var(--navy); }
+    .btn.ghost { background: transparent; }
+    .btn.small { padding: 8px 11px; font-size: 12px; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    main { width: min(1120px, calc(100% - 32px)); margin: 28px auto 70px; }
+    .page { display: none; animation: fadeIn .22s ease; }
+    .page.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 44px;
+      color: white;
+      border-radius: 28px;
+      background: linear-gradient(135deg, #173c4a 0%, #0f6266 58%, #07847d 100%);
+      box-shadow: var(--shadow);
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 420px; height: 420px;
+      right: -170px; top: -190px;
+      border: 80px solid rgba(255,255,255,.055);
+      border-radius: 50%;
+    }
+    .hero > * { position: relative; z-index: 2; }
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 12px;
+      color: #bcebe7;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+    }
+    h1, h2, h3 { letter-spacing: -.025em; }
+    .hero h1 { margin: 0; max-width: 900px; font-size: clamp(34px, 5vw, 58px); line-height: 1.03; }
+    .hero p { max-width: 850px; margin: 18px 0 0; color: rgba(255,255,255,.83); font-size: 17px; }
+    .hero-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 28px; max-width: 900px; }
+    .hero-card { padding: 16px; border: 1px solid rgba(255,255,255,.18); border-radius: 15px; background: rgba(255,255,255,.09); }
+    .hero-card span { display: block; color: #bcebe7; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+    .hero-card strong { display: block; margin-top: 4px; font-size: 17px; }
+
+    .content-card {
+      margin-top: 20px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 7px 22px rgba(20,55,64,.055);
+      overflow: hidden;
+    }
+    .card-head { padding: 22px 24px; border-bottom: 1px solid var(--line); }
+    .card-head h2, .card-head h3 { margin: 0; }
+    .card-head p { margin: 5px 0 0; color: var(--muted); }
+    .card-body { padding: 24px; }
+
+    .section-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 20px; }
+    .info-block { padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: #fbfdfd; }
+    .info-block h3 { margin: 0 0 8px; font-size: 16px; }
+    .info-block p { margin: 0; color: #456169; }
+    .info-block + .info-block { margin-top: 12px; }
+    .issue-box { padding: 22px; border-radius: 17px; background: var(--navy); color: white; }
+    .issue-box .label { color: #bcebe7; font-size: 10px; text-transform: uppercase; letter-spacing: .09em; font-weight: 900; }
+    .issue-box strong { display: block; margin-top: 8px; font-size: 20px; line-height: 1.32; }
+    .objective-list { display: grid; gap: 10px; margin-top: 14px; }
+    .objective { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; }
+    .objective i { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: #e5f4f2; color: var(--teal-dark); font-style: normal; font-weight: 900; font-size: 12px; }
+    .objective strong { display: block; font-size: 13px; }
+    .objective span { display: block; color: var(--muted); font-size: 12px; margin-top: 1px; }
+
+    .steps { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .step-card { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 14px; align-items: start; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: #fbfdfd; }
+    .step-card .num { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 11px; background: var(--surface-soft); color: var(--teal-dark); font-weight: 900; }
+    .step-card strong { display: block; margin-top: 0; font-size: 14px; }
+    .step-card p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+    .role-description { max-width: 940px; font-size: 14px; line-height: 1.65; }
+    .score-explainer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: stretch; }
+    .score-explainer-grid > .info-block { height: 100%; margin: 0; }
+    .weight-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }
+    .weight-card { padding: 15px; border: 1px solid var(--line); border-radius: 14px; background: #fbfdfd; }
+    .weight-card b { display: block; color: var(--teal-dark); font-size: 22px; line-height: 1; }
+    .weight-card strong { display: block; margin-top: 7px; font-size: 13px; }
+    .weight-card p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+    .score-formula-note { margin-top: 13px; color: #425f67; font-size: 12px; line-height: 1.55; }
+    select { width: 100%; padding: 10px 12px; color: var(--ink); background: white; border: 1px solid var(--line); border-radius: 11px; }
+    .comparison-controls { display: grid; grid-template-columns: minmax(220px, .7fr) minmax(300px, 1.3fr); gap: 14px; }
+    .comparison-controls label { display: block; color: var(--muted); font-size: 11px; font-weight: 850; }
+    .comparison-controls select { margin-top: 6px; }
+    .rank-summary { margin-top: 16px; padding: 13px 15px; border-radius: 13px; background: #f2f8f9; border: 1px solid #c9dde0; color: #36545c; font-size: 12px; }
+    .comparison-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+    .pathway-compare-card { padding: 17px; border: 1px solid var(--line); border-radius: 15px; background: #fbfdfd; }
+    .pathway-compare-card.current { border-color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); background: #eef9f8; }
+    .pathway-compare-card .compare-label { color: var(--muted); font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .065em; }
+    .pathway-compare-card h3 { margin: 5px 0 0; font-size: 18px; }
+    .pathway-decisions { display: grid; gap: 5px; margin-top: 11px; color: #456169; font-size: 11px; }
+    .compare-score-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-top: 13px; }
+    .compare-score { padding: 8px; border-radius: 9px; background: white; border: 1px solid var(--line); text-align: center; }
+    .compare-score span { display: block; color: var(--muted); font-size: 9px; text-transform: uppercase; font-weight: 900; }
+    .compare-score b { display: block; margin-top: 2px; font-size: 15px; }
+    .table-scroll { margin-top: 16px; overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+    .comparison-table { width: 100%; min-width: 930px; border-collapse: collapse; font-size: 11px; background: white; }
+    .comparison-table th, .comparison-table td { padding: 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .comparison-table th { color: var(--muted); background: #f7fafb; font-size: 9px; text-transform: uppercase; letter-spacing: .06em; }
+    .comparison-table td.num, .comparison-table th.num { text-align: right; white-space: nowrap; }
+    .comparison-table tr.current-path td { background: #eef9f8; font-weight: 800; }
+    .comparison-table tr:last-child td { border-bottom: 0; }
+    .pathway-cell { min-width: 260px; }
+    .pathway-cell strong { display: block; }
+    .pathway-cell span { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+
+    .time-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .time-table th, .time-table td { padding: 10px; text-align: left; border-bottom: 1px solid var(--line); }
+    .time-table th { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .07em; }
+    .time-table tr:last-child td { border-bottom: 0; }
+
+    .page-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; }
+    .page-nav .right { display: flex; gap: 10px; margin-left: auto; }
+    .lock-note { color: var(--muted); font-size: 12px; }
+
+    .round-banner {
+      display: flex; align-items: center; justify-content: space-between; gap: 18px;
+      padding: 18px 21px;
+      border-radius: 18px;
+      background: linear-gradient(120deg, var(--navy), #225d68);
+      color: white;
+      box-shadow: var(--shadow);
+    }
+    .round-banner .round { color: #bcebe7; font-size: 10px; text-transform: uppercase; letter-spacing: .09em; font-weight: 900; }
+    .round-banner h1 { margin: 3px 0 0; font-size: clamp(25px, 4vw, 38px); }
+    .round-banner .period { flex: 0 0 auto; padding: 8px 11px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; background: rgba(255,255,255,.08); font-size: 12px; font-weight: 800; }
+
+    .context-strip { margin-top: 16px; padding: 16px 18px; border: 1px solid #c8dce0; border-radius: 15px; background: #f2f8f9; color: #36545c; }
+    .context-strip strong { color: var(--ink); }
+
+    .decision-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(285px, .75fr); gap: 20px; margin-top: 18px; align-items: start; }
+    .decision-options { display: grid; gap: 12px; }
+    .decision-card {
+      width: 100%;
+      text-align: left;
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr);
+      gap: 13px;
+      padding: 18px;
+      color: var(--ink);
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      transition: .16s ease;
+    }
+    .decision-card:hover { transform: translateY(-1px); border-color: #9bb8be; }
+    .decision-card.selected { border-color: var(--teal); background: #eef9f8; box-shadow: inset 0 0 0 1px var(--teal); }
+    .radio { width: 21px; height: 21px; margin-top: 2px; border: 2px solid #a8b9bd; border-radius: 50%; display: grid; place-items: center; }
+    .selected .radio { border-color: var(--teal); }
+    .selected .radio::after { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--teal); }
+    .decision-card h3 { margin: 0; font-size: 17px; }
+    .decision-card .summary { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .tradeoffs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 11px; }
+    .tradeoff { padding: 9px 10px; border-radius: 10px; font-size: 11px; }
+    .tradeoff.up { background: #eef7f1; color: #356748; }
+    .tradeoff.down { background: #fff4ed; color: #8a5524; }
+    .evidence { margin-top: 10px; padding-top: 10px; border-top: 1px solid #dce7e9; color: #587078; font-size: 11px; }
+    .evidence strong { color: var(--blue); }
+
+    .side-card { padding: 19px; border: 1px solid var(--line); border-radius: 17px; background: #fbfdfd; }
+    .side-card h3 { margin: 0; font-size: 15px; }
+    .side-card p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+    .mini-fact { margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--surface-soft); }
+    .mini-fact span { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; font-weight: 900; }
+    .mini-fact strong { display: block; margin-top: 3px; font-size: 14px; }
+
+    .assumption-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+    .field { min-width: 0; }
+    .field label { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 7px; font-size: 12px; font-weight: 850; }
+    .field output { color: var(--teal-dark); white-space: nowrap; }
+    input[type="range"] { width: 100%; accent-color: var(--teal); }
+    .helper { margin-top: 4px; color: var(--muted); font-size: 10px; }
+
+    .locked-choice { display: flex; align-items: center; gap: 9px; margin-top: 12px; padding: 11px 13px; border-radius: 12px; background: #eef7f1; color: #356748; font-size: 12px; font-weight: 800; }
+    .locked-choice::before { content: "✓"; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; color: white; background: var(--green); }
+
+    .impact-title { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; }
+    .impact-title h1 { margin: 0; font-size: clamp(28px, 4vw, 42px); }
+    .impact-title p { margin: 7px 0 0; color: var(--muted); max-width: 790px; }
+    .locked-badge { padding: 8px 12px; border-radius: 999px; color: #356748; background: #eef7f1; border: 1px solid #bed8c7; font-size: 11px; font-weight: 900; white-space: nowrap; }
+
+    .outcome-callout { margin-top: 18px; padding: 20px; border-radius: 17px; background: var(--navy); color: white; }
+    .outcome-callout span { color: #bcebe7; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+    .outcome-callout strong { display: block; margin-top: 5px; font-size: 21px; }
+    .outcome-callout p { margin: 7px 0 0; color: rgba(255,255,255,.78); }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .kpi { padding: 16px; border: 1px solid var(--line); border-radius: 15px; background: #fbfdfd; }
+    .kpi-label { color: var(--muted); font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .055em; }
+    .kpi-value { margin-top: 6px; font-size: clamp(22px, 3vw, 31px); font-weight: 900; letter-spacing: -.035em; white-space: nowrap; }
+    .kpi-sub { margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .good { color: var(--green); }
+    .warn { color: var(--amber); }
+    .bad { color: var(--red); }
+
+    .impact-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 20px; margin-top: 20px; }
+    .simple-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .simple-table th, .simple-table td { padding: 10px 7px; border-bottom: 1px solid var(--line); text-align: left; }
+    .simple-table th { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .07em; }
+    .simple-table td:last-child, .simple-table th:last-child { text-align: right; }
+    .simple-table tr.total td { font-weight: 900; border-top: 2px solid #bdcdd1; }
+    .simple-table tr:last-child td { border-bottom: 0; }
+
+    .score-list { display: grid; gap: 13px; }
+    .score-row .top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .score-row .top strong { font-size: 13px; }
+    .score-row .top b { font-size: 18px; }
+    .bar { height: 8px; margin-top: 7px; border-radius: 999px; overflow: hidden; background: #e4ebed; }
+    .bar span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--navy), var(--teal)); }
+    .score-row p { margin: 6px 0 0; color: var(--muted); font-size: 11px; }
+
+    .takeaway { margin-top: 18px; padding: 17px 19px; border: 1px solid #c9dde0; border-radius: 15px; background: #f2f8f9; }
+    .takeaway strong { display: block; }
+    .takeaway p { margin: 5px 0 0; color: #425f67; }
+    .carry-forward { margin-top: 12px; padding: 13px 15px; border-left: 4px solid var(--amber); background: #fff8eb; color: #71531c; border-radius: 0 12px 12px 0; font-size: 12px; }
+
+    .final-score-wrap { display: grid; grid-template-columns: 310px 1fr; gap: 22px; align-items: stretch; }
+    .score-circle-card { display: grid; place-items: center; text-align: center; padding: 26px; border-radius: 20px; background: linear-gradient(145deg, var(--navy), var(--teal)); color: white; }
+    .score-circle { width: 178px; height: 178px; display: grid; place-items: center; border-radius: 50%; border: 13px solid rgba(255,255,255,.18); background: rgba(255,255,255,.07); }
+    .score-circle strong { font-size: 54px; line-height: 1; }
+    .score-circle span { display: block; font-size: 12px; color: #bcebe7; font-weight: 800; }
+    .score-circle-card h2 { margin: 18px 0 0; font-size: 20px; }
+    .score-circle-card p { margin: 6px 0 0; color: rgba(255,255,255,.76); font-size: 12px; }
+    .final-breakdown { padding: 22px; border: 1px solid var(--line); border-radius: 20px; background: white; }
+    .final-breakdown h2 { margin: 0; }
+    .final-breakdown > p { margin: 6px 0 17px; color: var(--muted); }
+
+    .chart-wrap { height: 300px; padding: 9px; border: 1px solid var(--line); border-radius: 15px; background: #fcfefe; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; color: var(--muted); font-size: 11px; }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .legend i { display: inline-block; width: 18px; height: 3px; border-radius: 3px; }
+
+    .timeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .timeline-card { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: #fbfdfd; }
+    .timeline-card span { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; font-weight: 900; letter-spacing: .06em; }
+    .timeline-card strong { display: block; margin-top: 5px; font-size: 13px; }
+    .timeline-card b { display: block; margin-top: 8px; font-size: 17px; }
+
+    .feedback-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .feedback { padding: 17px; border-radius: 15px; border: 1px solid var(--line); }
+    .feedback h3 { margin: 0; font-size: 14px; }
+    .feedback p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+    .feedback.positive { background: #f0f8f3; border-color: #c6ddce; }
+    .feedback.risk { background: #fff7ed; border-color: #ead3ad; }
+
+    details.assumption-group { border: 1px solid var(--line); border-radius: 15px; background: #fbfdfd; overflow: hidden; }
+    details.assumption-group + details.assumption-group { margin-top: 12px; }
+    details.assumption-group summary { padding: 15px 17px; cursor: pointer; font-weight: 900; }
+    details.assumption-group[open] summary { border-bottom: 1px solid var(--line); }
+    .assumption-body { padding: 16px 17px; }
+    .assumption-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .assumption-table th, .assumption-table td { padding: 9px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .assumption-table th { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+    .assumption-table tr:last-child td { border-bottom: 0; }
+    code.logic { display: block; white-space: pre-wrap; padding: 14px; border-radius: 12px; background: #edf3f4; color: #31535b; font-size: 12px; line-height: 1.55; }
+
+    .notice { margin-top: 16px; padding: 14px 16px; border-radius: 13px; background: #fff8eb; border: 1px solid #e6d2a7; color: #6e531c; font-size: 12px; }
+    .source-note { margin-top: 14px; color: var(--muted); font-size: 10px; }
+    .toast { position: fixed; right: 22px; bottom: 22px; z-index: 60; padding: 11px 14px; border-radius: 12px; color: white; background: var(--navy); box-shadow: var(--shadow); opacity: 0; transform: translateY(12px); pointer-events: none; transition: .2s ease; font-size: 12px; }
+    .toast.show { opacity: 1; transform: none; }
+
+    @media (max-width: 920px) {
+      .topbar-inner { grid-template-columns: 1fr auto; }
+      .progress-wrap { grid-column: 1 / -1; grid-row: 2; padding-bottom: 10px; }
+      .section-grid, .decision-layout, .impact-grid, .final-score-wrap { grid-template-columns: 1fr; }
+      .kpi-grid, .timeline { grid-template-columns: 1fr 1fr; }
+      .hero-grid { grid-template-columns: 1fr; }
+      .weight-grid { grid-template-columns: 1fr 1fr; }
+      .score-explainer-grid, .comparison-controls, .comparison-pair { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .topbar-inner, main { width: min(100% - 20px, 1120px); }
+      .brand span { display: none; }
+      .hero { padding: 28px 22px; border-radius: 20px; }
+      .card-head, .card-body { padding: 18px; }
+      .kpi-grid, .timeline, .assumption-grid, .feedback-grid, .weight-grid { grid-template-columns: 1fr; }
+      .compare-score-grid { grid-template-columns: 1fr 1fr; }
+      .tradeoffs { grid-template-columns: 1fr; }
+      .round-banner { align-items: flex-start; flex-direction: column; }
+      .impact-title { grid-template-columns: 1fr; }
+      .page-nav { align-items: stretch; flex-direction: column; }
+      .page-nav .right { width: 100%; margin-left: 0; }
+      .page-nav .right .btn, .page-nav > .btn { flex: 1; }
+    }
+    @media print {
+      .topbar, .page-nav, .toast { display: none !important; }
+      body { background: white; }
+      main { width: 100%; margin: 0; }
+      .page { display: none !important; }
+      #page-final { display: block !important; }
+      .content-card, .hero { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark">EVA</div>
+        <div><strong>Guided Case Simulation</strong><span>Introductory management consulting exercise</span></div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-meta"><strong id="progressLabel">Introduction</strong><span id="progressCount">Page 1 of 12</span></div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+      <button class="btn ghost small" id="restartTopBtn">Restart</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- PAGE 1: INTRODUCTION -->
+    <section class="page active" id="page-intro" data-title="Introduction">
+      <div class="hero">
+        <div class="eyebrow">EVA Case Simulation</div>
+        <h1>Can EVA become sustainable without abandoning what made it different?</h1>
+        <p>You are advising EVA’s founders at a March 2023 strategic crossroads. Over four decision periods, you will make choices about the company’s services, technology, governance, and growth model.</p>
+        <div class="hero-grid">
+          <div class="hero-card"><span>Simulation horizon</span><strong>36 months</strong></div>
+          <div class="hero-card"><span>Decision rounds</span><strong>4 sequential choices</strong></div>
+          <div class="hero-card"><span>Recommended time</span><strong>25–35 minutes</strong></div>
+        </div>
+      </div>
+
+      <div class="content-card">
+        <div class="card-head"><h2>Case background</h2><p>The simulation begins at the decision point described in the 2023 EVA case.</p></div>
+        <div class="card-body section-grid">
+          <div>
+            <div class="info-block"><h3>From ride-sharing startup to mobility platform</h3><p>EVA launched in Quebec as an alternative to conventional ride-sharing platforms. Its cooperative structure gave driver-members a voice in pricing and policy, while blockchain technology supported transparency and decentralized data management.</p></div>
+            <div class="info-block"><h3>A pandemic-driven pivot</h3><p>COVID-19 weakened passenger demand and pushed EVA toward B2B last-mile delivery, beginning with enterprise partnerships such as SQDC. By 2023, its network had grown to approximately 5,000 drivers.</p></div>
+            <div class="info-block"><h3>Growth created a new problem</h3><p>Higher transaction volumes increased the cost and complexity of maintaining the blockchain infrastructure. At the same time, investors became less willing to provide additional funding through the existing cooperative structure.</p></div>
+          </div>
+          <div>
+            <div class="issue-box"><div class="label">Core issue statement</div><strong>How should EVA redesign its business model to improve financial sustainability while protecting driver equity, transparency, and trust?</strong></div>
+            <div class="info-block" style="margin-top:12px"><h3>By the end, you should be able to:</h3>
+              <div class="objective-list">
+                <div class="objective"><i>1</i><div><strong>Structure a strategic problem</strong><span>Separate service, technology, governance, and growth decisions.</span></div></div>
+                <div class="objective"><i>2</i><div><strong>Evaluate trade-offs</strong><span>Connect decisions to financial, operational, and mission consequences.</span></div></div>
+                <div class="objective"><i>3</i><div><strong>Make a recommendation</strong><span>Defend a coherent path rather than search for a single “correct” answer.</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="content-card">
+        <div class="card-head"><h2>How your recommendation will be evaluated</h2><p>Your final score is calculated out of 100 using four weighted outcomes. You will see the category results after each locked decision, but the underlying formulas remain hidden until the final debrief.</p></div>
+        <div class="card-body">
+          <div class="weight-grid">
+            <div class="weight-card"><b>35%</b><strong>Financial health</strong><p>Ending liquidity and the monthly operating result generated by your combined recommendations.</p></div>
+            <div class="weight-card"><b>25%</b><strong>Mission alignment</strong><p>Driver economics, cooperative influence, transparency, and continuity with EVA’s founding values.</p></div>
+            <div class="weight-card"><b>25%</b><strong>Growth readiness</strong><p>Capacity, technology scalability, access to capital, and the reach of your chosen growth model.</p></div>
+            <div class="weight-card"><b>15%</b><strong>Execution feasibility</strong><p>The number, pace, and complexity of changes EVA must implement while continuing to operate.</p></div>
+          </div>
+          <p class="score-formula-note"><strong>Final score = 35% Financial health + 25% Mission alignment + 25% Growth readiness + 15% Execution feasibility.</strong> There is no single required pathway: several combinations can perform well, but a strong result requires your four recommendations to work together.</p>
+        </div>
+      </div>
+      <div class="notice">This is an educational scenario tool. Figures not supplied in the case are illustrative teaching assumptions, not actual EVA financial data or forecasts.</div>
+      <div class="source-note">Case basis: <em>EVA: Business Model Innovation for Sustainable Growth and Profitability</em>, draft dated November 13, 2023.</div>
+      <div class="page-nav"><div></div><div class="right"><button class="btn primary" data-goto="1">Next: How the simulation works</button></div></div>
+    </section>
+
+    <!-- PAGE 2: HOW TO USE -->
+    <section class="page" id="page-how" data-title="How to use the simulation">
+      <div class="round-banner"><div><div class="round">Before you begin</div><h1>How to use the simulation</h1></div><div class="period">25–35 minutes</div></div>
+      <div class="content-card">
+        <div class="card-head"><h2>Your role and workflow</h2><p class="role-description">It is March 2023, and you are a junior strategy consultant advising EVA’s founders. Over a 36-month horizon, you will make four key recommendations to EVA’s leadership. For each decision, you must select the option that best addresses EVA’s core issue while weighing the relevant benefits, risks, and trade-offs. After each round, once you lock your recommendation and view its impact, you will not be able to return and change it.</p></div>
+        <div class="card-body">
+          <div class="steps">
+            <div class="step-card"><div class="num">1</div><div><strong>Review the decision</strong><p>Read the case evidence, opportunities, constraints, and risks presented for that nine-month period.</p></div></div>
+            <div class="step-card"><div class="num">2</div><div><strong>Select one recommendation</strong><p>Choose the option you believe best addresses EVA’s position at that point in time and supports the recommendations you have already made.</p></div></div>
+            <div class="step-card"><div class="num">3</div><div><strong>Lock your recommendation</strong><p>Proceed to the impact page when you are ready. Your choice becomes permanent and cannot be revised later.</p></div></div>
+            <div class="step-card"><div class="num">4</div><div><strong>Assess the impact</strong><p>Review the simplified financial result, operating consequences, strategic scorecard, and the new situation carried into your next decision.</p></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="content-card">
+        <div class="card-head"><h3>Simulation sequence</h3><p>The 36-month horizon is divided into four nine-month periods. Each round asks you to answer a specific consulting question.</p></div>
+        <div class="card-body">
+          <table class="time-table">
+            <thead><tr><th>Period</th><th>Decision</th><th>Question you must answer</th><th>Suggested time</th></tr></thead>
+            <tbody>
+              <tr><td>Months 1–9</td><td>Service portfolio</td><td>Should EVA preserve ride-sharing, become B2B-first, or exit B2C entirely?</td><td>5–7 min</td></tr>
+              <tr><td>Months 10–18</td><td>Technology architecture</td><td>Should EVA retain blockchain, adopt a hybrid architecture, or migrate to cloud/SaaS?</td><td>4–6 min</td></tr>
+              <tr><td>Months 19–27</td><td>Governance structure</td><td>Should EVA preserve cooperative control, introduce hybrid governance, or convert to a corporation?</td><td>4–6 min</td></tr>
+              <tr><td>Months 28–36</td><td>Growth model</td><td>Should EVA consolidate in Quebec, expand directly, license its technology, or use a partnership model?</td><td>4–6 min</td></tr>
+              <tr><td>End of Month 36</td><td>Final assessment</td><td>How coherent, sustainable, and defensible is your complete four-part recommendation?</td><td>5–8 min</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="content-card">
+        <div class="card-body score-explainer-grid">
+          <div class="info-block"><h3>How the final score works</h3><p>Your final score is calculated out of 100. <strong>Financial health accounts for 35%</strong> and reflects ending liquidity and the monthly operating result. <strong>Mission alignment accounts for 25%</strong> and reflects driver economics, transparency, and cooperative influence. <strong>Growth readiness accounts for 25%</strong> and reflects scalability, capacity, capital access, and market reach. <strong>Execution feasibility accounts for 15%</strong> and reflects how difficult your combined changes are to implement.</p><p style="margin-top:10px">The model rewards a coherent strategy: a recommendation can improve one outcome while weakening another. Multiple pathways can earn strong scores, but your four choices must work together rather than optimize one category in isolation.</p></div>
+          <div class="info-block"><h3>What remains hidden</h3><p>The detailed operating assumptions, financial values, and formulas are intentionally hidden while you make your recommendations. You will see their consequences after each round, and you can review the full assumption register only after your final assessment.</p><p style="margin-top:10px">This structure asks you to reason from case evidence and trade-offs first, as you would in an early-stage consulting engagement with incomplete information.</p></div>
+        </div>
+      </div>
+      <div class="page-nav"><button class="btn" data-goto="0">Back</button><div class="right"><button class="btn primary" data-goto="2">Begin Decision Point 1</button></div></div>
+    </section>
+
+    <!-- PAGE 3: DECISION 1 -->
+    <section class="page decision-page" id="page-decision1" data-title="Decision Point 1">
+      <div class="round-banner"><div><div class="round">Decision Point 1 of 4</div><h1>Choose EVA’s service portfolio</h1></div><div class="period">Months 1–9</div></div>
+      <div class="context-strip"><strong>Starting position:</strong> EVA is still operating B2C ride-sharing while expanding B2B last-mile delivery. Ride-sharing has been difficult to make profitable, but it remains central to EVA’s identity and existing customer base.</div>
+      <div class="decision-layout">
+        <div class="content-card" style="margin-top:0">
+          <div class="card-head"><h2>Which market focus should EVA pursue?</h2><p>Select one option. No financial or score impact will be shown until the decision is locked.</p></div>
+          <div class="card-body decision-options" data-decision-group="service">
+            <button class="decision-card" data-value="mix"><span class="radio"></span><span><h3>Preserve the B2C and B2B mix</h3><p class="summary">Continue serving riders while growing enterprise delivery alongside the original business.</p><div class="tradeoffs"><div class="tradeoff up">Maintains diversification and customer presence</div><div class="tradeoff down">Retains ride-sharing overhead and low-margin complexity</div></div><div class="evidence"><strong>Case evidence:</strong> EVA built its brand in ride-sharing, but management described profitability in that market as extremely difficult.</div></span></button>
+            <button class="decision-card" data-value="b2b"><span class="radio"></span><span><h3>Become B2B-first</h3><p class="summary">Gradually reduce ride-sharing and direct more drivers, management attention, and technology toward enterprise delivery.</p><div class="tradeoffs"><div class="tradeoff up">Builds on the promising pandemic-era pivot</div><div class="tradeoff down">Creates transition costs and greater client concentration</div></div><div class="evidence"><strong>Case evidence:</strong> The SQDC partnership demonstrated a viable B2B2C model and helped EVA expand its driver network.</div></span></button>
+            <button class="decision-card" data-value="exit"><span class="radio"></span><span><h3>Exit B2C ride-sharing</h3><p class="summary">Discontinue passenger rides and reposition EVA as a dedicated enterprise last-mile delivery platform.</p><div class="tradeoffs"><div class="tradeoff up">Eliminates substantial ride-sharing burden</div><div class="tradeoff down">Sacrifices the founding market and increases dependence on B2B clients</div></div><div class="evidence"><strong>Case evidence:</strong> The case explicitly asks whether EVA should abandon B2C for the more promising B2B market.</div></span></button>
+          </div>
+        </div>
+        <aside>
+          <div class="side-card"><h3>Limited simulation assumptions</h3><p>These are the only operating inputs you may adjust. They will be locked after this decision.</p>
+            <div class="assumption-grid">
+              <div class="field"><label><span>Average B2C fare</span><output id="b2cFareOut">$25</output></label><input id="b2cFare" type="range" min="18" max="35" step="1" value="25"><div class="helper">Average fare processed per passenger ride.</div></div>
+              <div class="field"><label><span>Average B2B fare</span><output id="b2bValueOut">$20</output></label><input id="b2bValue" type="range" min="14" max="28" step="1" value="20"><div class="helper">Average delivery service value.</div></div>
+              <div class="field"><label><span>Jobs per active driver</span><output id="jobsOut">80/month</output></label><input id="jobsPerDriver" type="range" min="50" max="120" step="5" value="80"><div class="helper">Monthly platform capacity per active driver.</div></div>
+              <div class="field"><label><span>B2B monthly growth</span><output id="b2bGrowthOut">1.5%</output></label><input id="b2bGrowth" type="range" min="0" max="3" step="0.1" value="1.5"><div class="helper">Growth in requested enterprise deliveries.</div></div>
+            </div>
+          </div>
+          <div class="side-card" style="margin-top:12px"><h3>Case facts to remember</h3><div class="mini-fact"><span>Driver network</span><strong>Approximately 5,000 by 2023</strong></div><div class="mini-fact"><span>Original model</span><strong>Quebec B2C ride-sharing</strong></div><div class="mini-fact"><span>New growth engine</span><strong>B2B2C last-mile delivery</strong></div></div>
+        </aside>
+      </div>
+      <div class="page-nav"><span class="lock-note">Your assumptions and service choice become permanent when you continue.</span><div class="right"><button class="btn primary lock-btn" data-round="1" disabled>Lock decision and view impact</button></div></div>
+    </section>
+
+    <!-- IMPACT TEMPLATE 1 -->
+    <section class="page impact-page" id="page-impact1" data-title="Impact Point 1" data-impact="1">
+      <div class="impact-title"><div><h1>Impact Point 1</h1><p>Results after the first nine months. Your service portfolio decision is now locked.</p></div><div class="locked-badge">Decision locked</div></div>
+      <div class="locked-choice impact-choice"></div>
+      <div class="outcome-callout"><span>What happened</span><strong class="impact-headline"></strong><p class="impact-summary"></p></div>
+      <div class="content-card"><div class="card-body"><div class="kpi-grid impact-kpis"></div></div></div>
+      <div class="impact-grid">
+        <div class="content-card" style="margin-top:0"><div class="card-head"><h3>Simplified monthly financial view</h3><p>Final month of this decision period. Amounts are illustrative CAD.</p></div><div class="card-body"><table class="simple-table"><thead><tr><th>Item</th><th>Month-end amount</th></tr></thead><tbody class="impact-finance"></tbody></table></div></div>
+        <div class="content-card" style="margin-top:0"><div class="card-head"><h3>Strategic scorecard</h3><p>Directional assessment at the end of the period.</p></div><div class="card-body"><div class="score-list impact-scores"></div></div></div>
+      </div>
+      <div class="takeaway"><strong>Consulting takeaway</strong><p class="impact-takeaway"></p></div><div class="carry-forward impact-carry"></div>
+      <div class="page-nav"><span class="lock-note">You cannot return to Decision Point 1.</span><div class="right"><button class="btn primary" data-goto="4">Continue to Decision Point 2</button></div></div>
+    </section>
+
+    <!-- PAGE 5: DECISION 2 -->
+    <section class="page decision-page" id="page-decision2" data-title="Decision Point 2">
+      <div class="round-banner"><div><div class="round">Decision Point 2 of 4</div><h1>Choose EVA’s technology architecture</h1></div><div class="period">Months 10–18</div></div>
+      <div class="context-strip" id="context2"></div>
+      <div class="decision-layout">
+        <div class="content-card" style="margin-top:0"><div class="card-head"><h2>How should EVA respond to rising technology costs?</h2><p>Your service portfolio remains locked. Select one infrastructure path for the next nine months.</p></div>
+          <div class="card-body decision-options" data-decision-group="tech">
+            <button class="decision-card" data-value="blockchain"><span class="radio"></span><span><h3>Retain the blockchain architecture</h3><p class="summary">Continue operating the existing infrastructure and protect EVA’s original transparency model.</p><div class="tradeoffs"><div class="tradeoff up">Preserves continuity, identity, and data principles</div><div class="tradeoff down">Maintains higher transaction cost and scalability limits</div></div><div class="evidence"><strong>Case evidence:</strong> Blockchain was embedded in EVA’s value proposition, but growing transaction volume increased cost and technical complexity.</div></span></button>
+            <button class="decision-card" data-value="hybrid"><span class="radio"></span><span><h3>Adopt a hybrid architecture</h3><p class="summary">Move high-volume processing to conventional cloud systems while retaining selected blockchain functions.</p><div class="tradeoffs"><div class="tradeoff up">Balances cost reduction with partial transparency</div><div class="tradeoff down">Requires a complex migration and dual-system management</div></div><div class="evidence"><strong>Case evidence:</strong> A hybrid solution is not prescribed by the case, but it is a reasonable middle path between full continuity and full replacement.</div></span></button>
+            <button class="decision-card" data-value="saas"><span class="radio"></span><span><h3>Migrate to conventional cloud/SaaS</h3><p class="summary">Replace the blockchain infrastructure with a more conventional and scalable technology model.</p><div class="tradeoffs"><div class="tradeoff up">Substantially reduces unit technology cost and expands capacity</div><div class="tradeoff down">Creates high transition risk and weakens a core differentiator</div></div><div class="evidence"><strong>Case evidence:</strong> The case asks whether EVA should relinquish its blockchain investment and move to a conventional SaaS infrastructure.</div></span></button>
+          </div>
+        </div>
+        <aside><div class="side-card"><h3>Locked position entering this round</h3><div class="mini-fact"><span>Service strategy</span><strong id="lockedService2"></strong></div><div class="mini-fact"><span>Liquidity after Month 9</span><strong id="lockedCash2"></strong></div><div class="mini-fact"><span>Monthly result after Month 9</span><strong id="lockedCf2"></strong></div></div><div class="side-card" style="margin-top:12px"><h3>Decision lens</h3><p>Do not evaluate technology as an IT choice alone. Consider cost, implementation risk, customer trust, scalability, and strategic identity.</p></div></aside>
+      </div>
+      <div class="page-nav"><span class="lock-note">This technology decision cannot be revised after its impact is revealed.</span><div class="right"><button class="btn primary lock-btn" data-round="2" disabled>Lock decision and view impact</button></div></div>
+    </section>
+
+    <!-- IMPACT 2 -->
+    <section class="page impact-page" id="page-impact2" data-title="Impact Point 2" data-impact="2">
+      <div class="impact-title"><div><h1>Impact Point 2</h1><p>Results after 18 months. Your service and technology decisions are now locked.</p></div><div class="locked-badge">Decision locked</div></div>
+      <div class="locked-choice impact-choice"></div><div class="outcome-callout"><span>What happened</span><strong class="impact-headline"></strong><p class="impact-summary"></p></div>
+      <div class="content-card"><div class="card-body"><div class="kpi-grid impact-kpis"></div></div></div>
+      <div class="impact-grid"><div class="content-card" style="margin-top:0"><div class="card-head"><h3>Simplified monthly financial view</h3><p>Final month of this decision period. Amounts are illustrative CAD.</p></div><div class="card-body"><table class="simple-table"><thead><tr><th>Item</th><th>Month-end amount</th></tr></thead><tbody class="impact-finance"></tbody></table></div></div><div class="content-card" style="margin-top:0"><div class="card-head"><h3>Strategic scorecard</h3><p>Directional assessment at the end of the period.</p></div><div class="card-body"><div class="score-list impact-scores"></div></div></div></div>
+      <div class="takeaway"><strong>Consulting takeaway</strong><p class="impact-takeaway"></p></div><div class="carry-forward impact-carry"></div>
+      <div class="page-nav"><span class="lock-note">You cannot return to Decision Point 2.</span><div class="right"><button class="btn primary" data-goto="6">Continue to Decision Point 3</button></div></div>
+    </section>
+
+    <!-- PAGE 7: DECISION 3 -->
+    <section class="page decision-page" id="page-decision3" data-title="Decision Point 3">
+      <div class="round-banner"><div><div class="round">Decision Point 3 of 4</div><h1>Choose EVA’s governance structure</h1></div><div class="period">Months 19–27</div></div>
+      <div class="context-strip" id="context3"></div>
+      <div class="decision-layout">
+        <div class="content-card" style="margin-top:0"><div class="card-head"><h2>How should EVA balance member control and access to capital?</h2><p>Your service and technology choices remain locked.</p></div>
+          <div class="card-body decision-options" data-decision-group="governance">
+            <button class="decision-card" data-value="coop"><span class="radio"></span><span><h3>Retain the cooperative model</h3><p class="summary">Preserve democratic member control, the existing ecosystem allocation, and EVA’s original social model.</p><div class="tradeoffs"><div class="tradeoff up">Protects driver voice, trust, and mission consistency</div><div class="tradeoff down">Limits financing flexibility and operating take rate</div></div><div class="evidence"><strong>Case evidence:</strong> Driver-members could influence pricing and policy, but investors were becoming reluctant to provide further capital under the existing structure.</div></span></button>
+            <button class="decision-card" data-value="govHybrid"><span class="radio"></span><span><h3>Introduce hybrid governance</h3><p class="summary">Create a structure that accepts outside capital while reserving selected voting rights and protections for members.</p><div class="tradeoffs"><div class="tradeoff up">Improves financing access while retaining some member influence</div><div class="tradeoff down">Adds governance complexity and partial mission compromise</div></div><div class="evidence"><strong>Case evidence:</strong> The cooperative literature in the case frames cooperatives as hybrid organizations, supporting a structured middle option.</div></span></button>
+            <button class="decision-card" data-value="corp"><span class="radio"></span><span><h3>Convert to a conventional corporation</h3><p class="summary">Prioritize financing capacity, managerial control, and flexibility to adjust the platform’s economics.</p><div class="tradeoffs"><div class="tradeoff up">Unlocks the strongest capital access and revenue flexibility</div><div class="tradeoff down">Reduces driver control and creates significant trust risk</div></div><div class="evidence"><strong>Case evidence:</strong> The case explicitly considers giving up the cooperative model to attract investors and improve financial sustainability.</div></span></button>
+          </div>
+        </div>
+        <aside><div class="side-card"><h3>Locked position entering this round</h3><div class="mini-fact"><span>Service strategy</span><strong id="lockedService3"></strong></div><div class="mini-fact"><span>Technology strategy</span><strong id="lockedTech3"></strong></div><div class="mini-fact"><span>Liquidity after Month 18</span><strong id="lockedCash3"></strong></div></div><div class="side-card" style="margin-top:12px"><h3>Decision lens</h3><p>Governance affects more than funding. It changes incentives, decision rights, driver relationships, and the legitimacy of EVA’s social value proposition.</p></div></aside>
+      </div>
+      <div class="page-nav"><span class="lock-note">This governance decision cannot be revised after its impact is revealed.</span><div class="right"><button class="btn primary lock-btn" data-round="3" disabled>Lock decision and view impact</button></div></div>
+    </section>
+
+    <!-- IMPACT 3 -->
+    <section class="page impact-page" id="page-impact3" data-title="Impact Point 3" data-impact="3">
+      <div class="impact-title"><div><h1>Impact Point 3</h1><p>Results after 27 months. Three major strategic choices are now locked.</p></div><div class="locked-badge">Decision locked</div></div>
+      <div class="locked-choice impact-choice"></div><div class="outcome-callout"><span>What happened</span><strong class="impact-headline"></strong><p class="impact-summary"></p></div>
+      <div class="content-card"><div class="card-body"><div class="kpi-grid impact-kpis"></div></div></div>
+      <div class="impact-grid"><div class="content-card" style="margin-top:0"><div class="card-head"><h3>Simplified monthly financial view</h3><p>Final month of this decision period. Amounts are illustrative CAD.</p></div><div class="card-body"><table class="simple-table"><thead><tr><th>Item</th><th>Month-end amount</th></tr></thead><tbody class="impact-finance"></tbody></table></div></div><div class="content-card" style="margin-top:0"><div class="card-head"><h3>Strategic scorecard</h3><p>Directional assessment at the end of the period.</p></div><div class="card-body"><div class="score-list impact-scores"></div></div></div></div>
+      <div class="takeaway"><strong>Consulting takeaway</strong><p class="impact-takeaway"></p></div><div class="carry-forward impact-carry"></div>
+      <div class="page-nav"><span class="lock-note">You cannot return to Decision Point 3.</span><div class="right"><button class="btn primary" data-goto="8">Continue to Decision Point 4</button></div></div>
+    </section>
+
+    <!-- PAGE 9: DECISION 4 -->
+    <section class="page decision-page" id="page-decision4" data-title="Decision Point 4">
+      <div class="round-banner"><div><div class="round">Decision Point 4 of 4</div><h1>Choose EVA’s growth model</h1></div><div class="period">Months 28–36</div></div>
+      <div class="context-strip" id="context4"></div>
+      <div class="decision-layout">
+        <div class="content-card" style="margin-top:0"><div class="card-head"><h2>How should EVA pursue growth beyond its current market?</h2><p>This final choice determines the investment, control, and international risk carried into Month 36.</p></div>
+          <div class="card-body decision-options" data-decision-group="expansion">
+            <button class="decision-card" data-value="none"><span class="radio"></span><span><h3>Consolidate in Quebec</h3><p class="summary">Postpone geographic expansion and concentrate on strengthening the current business.</p><div class="tradeoffs"><div class="tradeoff up">Lowest investment and execution burden</div><div class="tradeoff down">Limits growth and leaves EVA dependent on one regional market</div></div><div class="evidence"><strong>Case evidence:</strong> The company faces immediate sustainability pressure, making consolidation a defensible sequencing choice even though it does not solve long-term scale.</div></span></button>
+            <button class="decision-card" data-value="direct"><span class="radio"></span><span><h3>Enter a new market directly</h3><p class="summary">Build local operations, recruit drivers, and retain full control over customer and service delivery.</p><div class="tradeoffs"><div class="tradeoff up">Retains control and the full economic upside</div><div class="tradeoff down">Requires the highest capital and exposes EVA to local regulatory risk</div></div><div class="evidence"><strong>Case evidence:</strong> EVA had already developed activity beyond Quebec, but international expansion requires legal and regulatory assessment.</div></span></button>
+            <button class="decision-card" data-value="license"><span class="radio"></span><span><h3>License EVA’s technology</h3><p class="summary">Allow local operators to use the platform in exchange for a transaction-based licensing fee.</p><div class="tradeoffs"><div class="tradeoff up">Scales with relatively low capital investment</div><div class="tradeoff down">Reduces control over service quality and brand interpretation</div></div><div class="evidence"><strong>Case evidence:</strong> The case asks how licensing could affect EVA’s brand identity and how the risk should be managed.</div></span></button>
+            <button class="decision-card" data-value="franchise"><span class="radio"></span><span><h3>Use a partnership or franchise model</h3><p class="summary">Share market investment and operating responsibility with a local partner under defined service standards.</p><div class="tradeoffs"><div class="tradeoff up">Balances capital efficiency and operational influence</div><div class="tradeoff down">Requires strong contracts, governance, and partner management</div></div><div class="evidence"><strong>Case evidence:</strong> This is an illustrative middle option that responds to both the licensing opportunity and the need to protect EVA’s reputation.</div></span></button>
+          </div>
+        </div>
+        <aside><div class="side-card"><h3>Locked position entering this round</h3><div class="mini-fact"><span>Service</span><strong id="lockedService4"></strong></div><div class="mini-fact"><span>Technology</span><strong id="lockedTech4"></strong></div><div class="mini-fact"><span>Governance</span><strong id="lockedGov4"></strong></div><div class="mini-fact"><span>Liquidity after Month 27</span><strong id="lockedCash4"></strong></div></div><div class="side-card" style="margin-top:12px"><h3>Decision lens</h3><p>Compare market control, capital intensity, speed, regulatory exposure, and the risk that partners deliver an experience inconsistent with EVA’s brand.</p></div></aside>
+      </div>
+      <div class="page-nav"><span class="lock-note">This is the final strategic decision.</span><div class="right"><button class="btn primary lock-btn" data-round="4" disabled>Lock decision and view impact</button></div></div>
+    </section>
+
+    <!-- IMPACT 4 -->
+    <section class="page impact-page" id="page-impact4" data-title="Impact Point 4" data-impact="4">
+      <div class="impact-title"><div><h1>Impact Point 4</h1><p>Results at the end of Month 36. All four strategic decisions are now locked.</p></div><div class="locked-badge">Decision locked</div></div>
+      <div class="locked-choice impact-choice"></div><div class="outcome-callout"><span>What happened</span><strong class="impact-headline"></strong><p class="impact-summary"></p></div>
+      <div class="content-card"><div class="card-body"><div class="kpi-grid impact-kpis"></div></div></div>
+      <div class="impact-grid"><div class="content-card" style="margin-top:0"><div class="card-head"><h3>Simplified monthly financial view</h3><p>Month 36 operating position. Amounts are illustrative CAD.</p></div><div class="card-body"><table class="simple-table"><thead><tr><th>Item</th><th>Month-end amount</th></tr></thead><tbody class="impact-finance"></tbody></table></div></div><div class="content-card" style="margin-top:0"><div class="card-head"><h3>Strategic scorecard</h3><p>Directional assessment at the end of the simulation.</p></div><div class="card-body"><div class="score-list impact-scores"></div></div></div></div>
+      <div class="takeaway"><strong>Consulting takeaway</strong><p class="impact-takeaway"></p></div><div class="carry-forward impact-carry"></div>
+      <div class="page-nav"><span class="lock-note">The simulation is complete.</span><div class="right"><button class="btn primary" id="viewFinalBtn">View final score and feedback</button></div></div>
+    </section>
+
+    <!-- FINAL PAGE -->
+    <section class="page" id="page-final" data-title="Final assessment">
+      <div class="round-banner"><div><div class="round">End of Month 36</div><h1>Final assessment</h1></div><div class="period">Simulation complete</div></div>
+      <div class="content-card"><div class="card-body final-score-wrap">
+        <div class="score-circle-card"><div class="score-circle"><div><strong id="finalScore">0</strong><span>out of 100</span></div></div><h2 id="finalBand"></h2><p id="finalBandText"></p></div>
+        <div class="final-breakdown"><h2>Score breakdown</h2><p>The score rewards a sustainable and internally coherent strategy. It is not a substitute for managerial judgment.</p><div class="score-list" id="finalBreakdown"></div></div>
+      </div></div>
+
+      <div class="content-card"><div class="card-head"><h2>Your strategic pathway</h2><p>The four choices made across the 36-month simulation.</p></div><div class="card-body"><div class="timeline" id="finalTimeline"></div></div></div>
+
+      <div class="content-card"><div class="card-head"><h2>Performance trend</h2><p>Liquidity and monthly cash result over the full simulation horizon.</p></div><div class="card-body"><div class="chart-wrap"><canvas id="finalChart"></canvas></div><div class="legend"><span><i style="background:#007f79"></i>Liquidity</span><span><i style="background:#173c4a"></i>Monthly net cash change</span><span><i style="background:#b64040"></i>Zero threshold</span></div></div></div>
+
+      <div class="content-card" id="pathwayComparisonCard">
+        <div class="card-head"><h2>Compare alternative pathways</h2><p>Your four decisions create one of 108 possible pathways. Compare your result with other combinations using the same assumptions you selected in Decision Point 1.</p></div>
+        <div class="card-body">
+          <div class="comparison-controls">
+            <label>Rank pathways by
+              <select id="comparisonMetric">
+                <option value="overall">Overall score</option>
+                <option value="financial">Financial health</option>
+                <option value="mission">Mission alignment</option>
+                <option value="growth">Growth readiness</option>
+                <option value="execution">Execution feasibility</option>
+                <option value="liquidity">Ending liquidity</option>
+              </select>
+            </label>
+            <label>Compare your pathway directly with
+              <select id="alternativePathway"></select>
+            </label>
+          </div>
+          <div class="rank-summary" id="comparisonSummary"></div>
+          <div class="comparison-pair" id="comparisonPair"></div>
+          <div class="table-scroll">
+            <table class="comparison-table">
+              <thead><tr><th class="num">Rank</th><th>Decision pathway</th><th class="num">Overall</th><th class="num">Financial</th><th class="num">Mission</th><th class="num">Growth</th><th class="num">Execution</th><th class="num">Ending liquidity</th></tr></thead>
+              <tbody id="comparisonRows"></tbody>
+            </table>
+          </div>
+          <p class="source-note">The table shows the eight highest-ranked pathways for the selected measure. Your pathway remains visible even when it is outside the top eight. This comparison is a model-based debrief, not evidence that the highest numerical score is automatically the best managerial recommendation.</p>
+        </div>
+      </div>
+
+      <div class="content-card"><div class="card-head"><h2>Feedback</h2><p>Use these observations to prepare your final recommendation to EVA’s founders.</p></div><div class="card-body"><div class="feedback-grid"><div class="feedback positive"><h3>What your strategy did well</h3><p id="positiveFeedback"></p></div><div class="feedback risk"><h3>Primary risk or unresolved issue</h3><p id="riskFeedback"></p></div></div><div class="takeaway" style="margin-top:14px"><strong>Recommended consulting discussion</strong><p id="recommendationPrompt"></p></div></div></div>
+
+      <div class="page-nav"><button class="btn" onclick="window.print()">Print final summary</button><div class="right"><button class="btn" id="restartFinalBtn">Restart simulation</button><button class="btn primary" data-goto="11">View assumptions and model logic</button></div></div>
+    </section>
+
+    <!-- ASSUMPTIONS PAGE -->
+    <section class="page" id="page-assumptions" data-title="Assumptions and model logic">
+      <div class="round-banner"><div><div class="round">Instructor and debrief reference</div><h1>Assumptions and model logic</h1></div><div class="period">Available after completion</div></div>
+      <div class="notice">The values below are transparent teaching assumptions used to create internally consistent consequences. They are not presented as actual EVA data.</div>
+      <div class="content-card"><div class="card-head"><h2>Assumption register</h2><p>The four assumptions you controlled are shown first, followed by the hidden baseline assumptions.</p></div><div class="card-body">
+        <details class="assumption-group" open><summary>Assumptions you controlled</summary><div class="assumption-body"><table class="assumption-table"><thead><tr><th>Input</th><th>Your value</th><th>Purpose</th></tr></thead><tbody id="userAssumptionRows"></tbody></table></div></details>
+        <details class="assumption-group"><summary>Case-grounded facts and model interpretations</summary><div class="assumption-body"><table class="assumption-table"><thead><tr><th>Parameter</th><th>Value</th><th>Basis</th></tr></thead><tbody><tr><td>Registered driver network</td><td>5,000</td><td>Approximate 2023 figure reported in the case.</td></tr><tr><td>Cooperative ecosystem allocation</td><td>15% total; 10% available for operating revenue in the model</td><td>The case describes 10% to the cooperative, 1% to the foundation, and 4% to the ecosystem treasury. The prototype treats only the 10% cooperative share as unrestricted operating revenue.</td></tr><tr><td>B2C market growth</td><td>5.38% annually</td><td>Canadian market forecast included in the 2023 case.</td></tr><tr><td>Starting demand mix</td><td>60% B2C / 40% B2B</td><td>Illustrative interpretation of a company still rooted in ride-sharing but actively pivoting toward delivery.</td></tr></tbody></table></div></details>
+        <details class="assumption-group"><summary>Hidden baseline operating and financial assumptions</summary><div class="assumption-body"><table class="assumption-table"><thead><tr><th>Parameter</th><th>Default</th><th>Rationale</th></tr></thead><tbody><tr><td>Starting liquidity</td><td>$600,000</td><td>Creates visible financing pressure without implying EVA’s actual cash balance.</td></tr><tr><td>Monthly baseline demand</td><td>100,000 requests</td><td>Produces a near-capacity starting position.</td></tr><tr><td>Active-driver rate</td><td>30%</td><td>Assumes only a portion of registered drivers are active in a given month.</td></tr><tr><td>Matching efficiency</td><td>85%</td><td>Accounts for unproductive time and platform matching limitations.</td></tr><tr><td>Baseline reliability</td><td>92%</td><td>Provides room for transition disruption and later improvement.</td></tr><tr><td>General fixed overhead</td><td>$140,000/month</td><td>Illustrative staffing, compliance, support, and administrative expense.</td></tr><tr><td>B2C structural overhead</td><td>$50,000/month</td><td>Illustrative insurance and passenger-ride operating burden.</td></tr><tr><td>Support costs</td><td>$0.35/B2C job; $0.25/B2B job</td><td>Simple variable service-cost assumptions.</td></tr><tr><td>B2B enterprise service premium</td><td>3% of B2B service value</td><td>Represents the assumption that contracted enterprise work produces somewhat stronger platform economics than consumer ride-sharing.</td></tr><tr><td>Driver share of transaction value</td><td>85% under the cooperative; 80% under hybrid or corporate governance</td><td>Reflects the case-described ecosystem allocation and the modeled trade-off between capital flexibility and driver economics.</td></tr><tr><td>Blockchain technology cost</td><td>$0.60/transaction</td><td>Creates the scale-related cost pressure described in the case.</td></tr><tr><td>Simulation periods</td><td>Four periods of nine months</td><td>Allows decisions to be sequential and path-dependent.</td></tr></tbody></table></div></details>
+        <details class="assumption-group"><summary>Core model formulas</summary><div class="assumption-body"><code class="logic">Active drivers = 5,000 × active-driver rate × governance retention effect
+
+Platform capacity = active drivers × jobs per active driver × matching efficiency × technology capacity effect
+
+Completed transactions = minimum of requested demand and platform capacity
+
+Transaction value = completed B2C jobs × average B2C fare + completed B2B jobs × average B2B fare
+
+Operating revenue = transaction value × operating take rate + 3% B2B enterprise service premium + expansion/licensing revenue
+
+Operating result = operating revenue − technology cost − support cost − fixed overhead − B2C structural overhead − expansion operating cost
+
+Net cash change = operating result − strategic transition investment + external financing
+
+Ending liquidity = opening liquidity + net cash change</code></div></details>
+        <details class="assumption-group"><summary>How strategic choices change the model</summary><div class="assumption-body"><table class="assumption-table"><thead><tr><th>Decision</th><th>Primary modeled effect</th><th>Trade-off represented</th></tr></thead><tbody><tr><td>B2B-first / exit B2C</td><td>Reduces B2C overhead and redirects growth toward delivery, with transition cost and temporary reliability pressure.</td><td>Focus and cost reduction versus diversification and founding-market continuity.</td></tr><tr><td>Hybrid / cloud technology</td><td>Reduces unit technology cost and raises capacity after an implementation period.</td><td>Scalability versus migration risk and transparency.</td></tr><tr><td>Hybrid / corporate governance</td><td>Raises operating take rate and provides illustrative external financing, while reducing driver retention and mission score.</td><td>Capital access versus democratic control.</td></tr><tr><td>Direct / licensed / partner growth</td><td>Changes setup investment, economics, speed, and control.</td><td>Full upside and control versus capital efficiency and partner dependence.</td></tr></tbody></table></div></details>
+      </div></div>
+      <div class="page-nav"><button class="btn" data-goto="10">Back to final assessment</button><div class="right"><button class="btn" id="restartAssumptionsBtn">Restart simulation</button></div></div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const pages = Array.from(document.querySelectorAll('.page'));
+  const stageEnds = [9, 18, 27, 36];
+  const labels = {
+    service: { mix: 'Preserve B2C and B2B mix', b2b: 'Become B2B-first', exit: 'Exit B2C ride-sharing' },
+    tech: { blockchain: 'Retain blockchain', hybrid: 'Adopt a hybrid architecture', saas: 'Migrate to cloud/SaaS' },
+    governance: { coop: 'Retain the cooperative', govHybrid: 'Introduce hybrid governance', corp: 'Convert to a corporation' },
+    expansion: { none: 'Consolidate in Quebec', direct: 'Enter a new market directly', license: 'License the technology', franchise: 'Use a partnership/franchise model' }
+  };
+
+  const state = {
+    page: 0,
+    decisions: { service: null, tech: null, governance: null, expansion: null },
+    locked: { service: false, tech: false, governance: false, expansion: false },
+    inputs: { b2cFare: 25, b2bValue: 20, jobsPerDriver: 80, b2bGrowth: 1.5 },
+    snapshots: {},
+    latest: null
+  };
+
+  const fixed = {
+    startingCash: 600000,
+    registeredDrivers: 5000,
+    activeRate: 0.30,
+    matching: 0.85,
+    baselineDemand: 100000,
+    reliability: 92,
+    b2cGrowthAnnual: 5.38,
+    fixedOverhead: 140000,
+    b2cOverhead: 50000
+  };
+
+  const money = n => {
+    const sign = n < 0 ? '-' : '';
+    const a = Math.abs(n);
+    if (a >= 1000000) return `${sign}$${(a/1000000).toFixed(a >= 10000000 ? 1 : 2)}M`;
+    if (a >= 1000) return `${sign}$${Math.round(a/1000)}K`;
+    return `${sign}$${Math.round(a).toLocaleString()}`;
+  };
+  const number = n => Math.round(n).toLocaleString();
+  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+  const ramp = (month, start, duration) => month < start ? 0 : clamp((month - start + 1) / duration, 0, 1);
+
+  function showPage(index) {
+    state.page = index;
+    pages.forEach((p, i) => p.classList.toggle('active', i === index));
+    document.getElementById('progressLabel').textContent = pages[index].dataset.title || 'Simulation';
+    document.getElementById('progressCount').textContent = `Page ${index + 1} of ${pages.length}`;
+    document.getElementById('progressFill').style.width = `${(index / (pages.length - 1)) * 100}%`;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (index === 4) updateDecisionContext(2);
+    if (index === 6) updateDecisionContext(3);
+    if (index === 8) updateDecisionContext(4);
+    if (index === 10) populateFinal();
+    if (index === 11) populateAssumptions();
+  }
+
+  document.addEventListener('click', e => {
+    const nav = e.target.closest('[data-goto]');
+    if (nav) showPage(Number(nav.dataset.goto));
+  });
+
+  document.querySelectorAll('[data-decision-group]').forEach(group => {
+    group.addEventListener('click', e => {
+      const card = e.target.closest('.decision-card');
+      if (!card) return;
+      const key = group.dataset.decisionGroup;
+      if (state.locked[key]) return;
+      group.querySelectorAll('.decision-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      state.decisions[key] = card.dataset.value;
+      const round = { service: 1, tech: 2, governance: 3, expansion: 4 }[key];
+      document.querySelector(`.lock-btn[data-round="${round}"]`).disabled = false;
+    });
+  });
+
+  const inputBindings = {
+    b2cFare: { out: 'b2cFareOut', format: v => `$${v}` },
+    b2bValue: { out: 'b2bValueOut', format: v => `$${v}` },
+    jobsPerDriver: { out: 'jobsOut', format: v => `${v}/month` },
+    b2bGrowth: { out: 'b2bGrowthOut', format: v => `${Number(v).toFixed(1)}%` }
+  };
+  Object.entries(inputBindings).forEach(([id, config]) => {
+    const el = document.getElementById(id);
+    el.addEventListener('input', () => {
+      state.inputs[id] = Number(el.value);
+      document.getElementById(config.out).textContent = config.format(el.value);
+    });
+  });
+
+  document.querySelectorAll('.lock-btn').forEach(btn => {
+    btn.addEventListener('click', () => lockRound(Number(btn.dataset.round)));
+  });
+
+  function lockRound(round) {
+    const key = ['service', 'tech', 'governance', 'expansion'][round - 1];
+    if (!state.decisions[key]) return;
+    state.locked[key] = true;
+    if (round === 1) {
+      Object.keys(inputBindings).forEach(id => {
+        state.inputs[id] = Number(document.getElementById(id).value);
+        document.getElementById(id).disabled = true;
+      });
+    }
+    const result = simulate(stageEnds[round - 1]);
+    state.snapshots[round] = result;
+    state.latest = result;
+    populateImpact(round, result);
+    showPage(round * 2 + 1);
+  }
+
+  function simulate(horizon) {
+    const s = state.decisions;
+    const i = state.inputs;
+    const rows = [];
+    let liquidity = fixed.startingCash;
+    let minLiquidity = liquidity;
+    const monthlyB2CGrowth = Math.pow(1 + fixed.b2cGrowthAnnual / 100, 1 / 12) - 1;
+    const baseB2C = fixed.baselineDemand * .60;
+    const baseB2B = fixed.baselineDemand * .40;
+
+    for (let month = 1; month <= horizon; month++) {
+      const service = s.service || 'mix';
+      const tech = month >= 10 ? (s.tech || 'blockchain') : 'blockchain';
+      const governance = month >= 19 ? (s.governance || 'coop') : 'coop';
+      const expansion = month >= 28 ? (s.expansion || 'none') : 'none';
+
+      let reliability = fixed.reliability;
+      let b2cDemand = baseB2C * Math.pow(1 + monthlyB2CGrowth, month - 1) * Math.pow(i.b2cFare / 25, -1.2);
+      let b2bDemand = baseB2B * Math.pow(1 + i.b2bGrowth / 100, month - 1) * Math.pow(i.b2bValue / 20, -0.4);
+      let b2cFixed = fixed.b2cOverhead;
+      let serviceTransition = 0;
+
+      if (service === 'b2b') {
+        const r = ramp(month, 1, 9);
+        b2cDemand *= 1 - .67 * r;
+        b2bDemand *= (1 + .10 * r) * Math.pow(1.003, month - 1);
+        b2cFixed *= 1 - .70 * r;
+        if (month <= 9) { reliability -= 2; serviceTransition = 250000 / 9; }
+      } else if (service === 'exit') {
+        const r = ramp(month, 1, 9);
+        b2cDemand *= 1 - r;
+        b2bDemand *= (1 + .15 * r) * Math.pow(1.005, month - 1);
+        b2cFixed *= 1 - r;
+        if (month <= 9) { reliability -= 3; serviceTransition = 400000 / 9; }
+      }
+
+      let techMultiplier = 1;
+      let techCostPerJob = .60;
+      let techFixedSaving = 0;
+      let techTransition = 0;
+      if (tech === 'hybrid') {
+        const r = ramp(month, 10, 6);
+        techMultiplier = 1 + .30 * r;
+        techCostPerJob = .60 * (1 - .30 * r);
+        techFixedSaving = .10 * r;
+        if (month <= 15) { reliability -= 2; techTransition = 350000 / 6; }
+      } else if (tech === 'saas') {
+        const r = ramp(month, 10, 9);
+        techMultiplier = 1 + .60 * r;
+        techCostPerJob = .60 * (1 - .55 * r);
+        techFixedSaving = .20 * r;
+        if (month <= 18) { reliability -= 4; techTransition = 600000 / 9; }
+      }
+
+      let driverRetention = 1;
+      let takeRate = .10;
+      let driverShare = .85;
+      let governanceTransition = 0;
+      let financing = 0;
+      if (governance === 'govHybrid') {
+        driverRetention = .97;
+        takeRate = .15;
+        driverShare = .80;
+        if (month >= 19 && month <= 24) governanceTransition = 250000 / 6;
+        if (month === 25) financing = 750000;
+      } else if (governance === 'corp') {
+        driverRetention = .90;
+        takeRate = .20;
+        driverShare = .80;
+        if (month >= 19 && month <= 24) governanceTransition = 400000 / 6;
+        if (month === 25) financing = 1500000;
+      }
+
+      const activeDrivers = fixed.registeredDrivers * fixed.activeRate * driverRetention;
+      const capacity = activeDrivers * i.jobsPerDriver * fixed.matching * techMultiplier;
+      const reliabilityEffect = clamp(1 + (reliability - fixed.reliability) * .012, .86, 1.08);
+      b2cDemand *= reliabilityEffect;
+      b2bDemand *= reliabilityEffect;
+      const totalDemand = Math.max(0, b2cDemand + b2bDemand);
+      const completed = Math.min(totalDemand, capacity);
+      const b2cShare = totalDemand ? b2cDemand / totalDemand : 0;
+      const completedB2C = completed * b2cShare;
+      const completedB2B = completed - completedB2C;
+      const transactionValue = completedB2C * i.b2cFare + completedB2B * i.b2bValue;
+      const enterpriseServicePremium = completedB2B * i.b2bValue * .03;
+      const platformRevenue = transactionValue * takeRate + enterpriseServicePremium;
+      const driverComp = transactionValue * driverShare;
+      const technologyCost = completed * techCostPerJob;
+      const supportCost = completedB2C * .35 + completedB2B * .25;
+      const fixedOverhead = fixed.fixedOverhead * (1 - techFixedSaving);
+
+      let expansionRevenue = 0;
+      let expansionOperatingCost = 0;
+      let expansionTransition = 0;
+      let expansionTransactions = 0;
+      if (expansion === 'direct') {
+        if (month >= 28 && month <= 36) expansionTransition = 750000 / 9;
+        if (month >= 31) {
+          const r = ramp(month, 31, 6);
+          expansionTransactions = 20000 * r;
+          expansionRevenue = expansionTransactions * i.b2bValue * (takeRate + .03);
+          expansionOperatingCost = expansionTransactions * (techCostPerJob + .30) + 90000;
+        }
+      } else if (expansion === 'license') {
+        if (month >= 28 && month <= 30) expansionTransition = 200000 / 3;
+        if (month >= 31) {
+          const r = ramp(month, 31, 6);
+          expansionTransactions = 30000 * r;
+          expansionRevenue = expansionTransactions * .75;
+          expansionOperatingCost = expansionTransactions * .15;
+        }
+      } else if (expansion === 'franchise') {
+        if (month >= 28 && month <= 33) expansionTransition = 400000 / 6;
+        if (month >= 31) {
+          const r = ramp(month, 31, 6);
+          expansionTransactions = 35000 * r;
+          expansionRevenue = expansionTransactions * 1.50;
+          expansionOperatingCost = expansionTransactions * .25;
+        }
+      }
+
+      const operatingResult = platformRevenue + expansionRevenue - technologyCost - supportCost - fixedOverhead - b2cFixed - expansionOperatingCost;
+      const strategicInvestment = serviceTransition + techTransition + governanceTransition + expansionTransition;
+      const netCashChange = operatingResult - strategicInvestment + financing;
+      liquidity += netCashChange;
+      minLiquidity = Math.min(minLiquidity, liquidity);
+
+      rows.push({ month, service, tech, governance, expansion, reliability, activeDrivers, capacity, b2cDemand, b2bDemand, totalDemand, completedB2C, completedB2B, completed, expansionTransactions, transactionValue, platformRevenue, expansionRevenue, technologyCost, supportCost, fixedOverhead, b2cFixed, expansionOperatingCost, operatingResult, strategicInvestment, financing, netCashChange, liquidity, minLiquidity, utilization: capacity ? completed / capacity : 0, demandServed: totalDemand ? completed / totalDemand : 0, driverEarnings: activeDrivers ? driverComp / activeDrivers : 0, takeRate });
+    }
+
+    const final = rows[rows.length - 1];
+    const scores = computeScores(final, horizon);
+    return { rows, final, minLiquidity, scores, horizon };
+  }
+
+  function computeScores(final, horizon) {
+    const s = state.decisions;
+    let mission = 92;
+    if (s.service === 'b2b') mission -= 4;
+    if (s.service === 'exit') mission -= 8;
+    if (horizon >= 18 && s.tech === 'hybrid') mission -= 8;
+    if (horizon >= 18 && s.tech === 'saas') mission -= 20;
+    if (horizon >= 27 && s.governance === 'govHybrid') mission -= 15;
+    if (horizon >= 27 && s.governance === 'corp') mission -= 35;
+    if (horizon >= 36 && s.expansion === 'license') mission -= 5;
+    if (horizon >= 36 && s.expansion === 'franchise') mission -= 3;
+    if (final.driverEarnings < 900) mission -= 8;
+
+    let growth = 45;
+    if (s.service === 'b2b') growth += 10;
+    if (s.service === 'exit') growth += 14;
+    if (horizon >= 18 && s.tech === 'hybrid') growth += 22;
+    if (horizon >= 18 && s.tech === 'saas') growth += 34;
+    if (horizon >= 27 && s.governance === 'govHybrid') growth += 15;
+    if (horizon >= 27 && s.governance === 'corp') growth += 24;
+    if (horizon >= 36 && s.expansion === 'none') growth -= 8;
+    if (horizon >= 36 && s.expansion === 'direct') growth += 12;
+    if (horizon >= 36 && s.expansion === 'license') growth += 18;
+    if (horizon >= 36 && s.expansion === 'franchise') growth += 16;
+
+    let execution = 88;
+    if (s.service && s.service !== 'mix') execution -= 7;
+    if (horizon >= 18 && s.tech && s.tech !== 'blockchain') execution -= s.tech === 'hybrid' ? 10 : 18;
+    if (horizon >= 27 && s.governance && s.governance !== 'coop') execution -= s.governance === 'govHybrid' ? 9 : 14;
+    if (horizon >= 36 && s.expansion && s.expansion !== 'none') execution -= s.expansion === 'license' ? 7 : s.expansion === 'franchise' ? 11 : 18;
+    if (final.operatingResult > 0) execution += 8;
+
+    const liquidityPart = clamp((final.liquidity + 500000) / 2000000, 0, 1) * 50;
+    const resultPart = clamp((final.operatingResult + 100000) / 200000, 0, 1) * 50;
+    const financial = liquidityPart + resultPart;
+
+    return {
+      financial: Math.round(clamp(financial, 0, 100)),
+      mission: Math.round(clamp(mission, 10, 100)),
+      growth: Math.round(clamp(growth, 10, 100)),
+      execution: Math.round(clamp(execution, 10, 100))
+    };
+  }
+
+  function populateImpact(round, result) {
+    const page = document.querySelector(`[data-impact="${round}"]`);
+    const f = result.final;
+    const decisionKey = ['service', 'tech', 'governance', 'expansion'][round - 1];
+    page.querySelector('.impact-choice').textContent = `${['Service portfolio', 'Technology architecture', 'Governance structure', 'Growth model'][round - 1]}: ${labels[decisionKey][state.decisions[decisionKey]]}`;
+
+    const narrative = impactNarrative(round, result);
+    page.querySelector('.impact-headline').textContent = narrative.headline;
+    page.querySelector('.impact-summary').textContent = narrative.summary;
+    page.querySelector('.impact-takeaway').textContent = narrative.takeaway;
+    page.querySelector('.impact-carry').textContent = narrative.carry;
+
+    const kpis = [
+      { label: 'Ending liquidity', value: money(f.liquidity), sub: `End of Month ${f.month}`, cls: f.liquidity > 250000 ? 'good' : f.liquidity >= 0 ? 'warn' : 'bad' },
+      { label: 'Monthly operating result', value: money(f.operatingResult), sub: 'Before one-time investment and financing', cls: f.operatingResult >= 0 ? 'good' : f.operatingResult > -25000 ? 'warn' : 'bad' },
+      { label: 'Demand served', value: `${Math.round(f.demandServed * 100)}%`, sub: `${number(f.completed)} core-market jobs`, cls: f.demandServed >= .90 ? 'good' : f.demandServed >= .78 ? 'warn' : 'bad' },
+      { label: 'Driver earnings', value: `${money(f.driverEarnings)}/mo`, sub: 'Average per active driver', cls: f.driverEarnings >= 1100 ? 'good' : f.driverEarnings >= 850 ? 'warn' : 'bad' }
+    ];
+    page.querySelector('.impact-kpis').innerHTML = kpis.map(k => `<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value ${k.cls}">${k.value}</div><div class="kpi-sub">${k.sub}</div></div>`).join('');
+
+    const stageStart = (round - 1) * 9 + 1;
+    const stageRows = result.rows.filter(row => row.month >= stageStart && row.month <= f.month);
+    const periodInvestment = stageRows.reduce((sum, row) => sum + row.strategicInvestment, 0);
+    const periodFinancing = stageRows.reduce((sum, row) => sum + row.financing, 0);
+    const periodCashChange = stageRows.reduce((sum, row) => sum + row.netCashChange, 0);
+    const periodLabel = `Months ${stageStart}–${f.month}`;
+    const financeRows = [
+      ['Month-end platform and partner revenue', f.platformRevenue + f.expansionRevenue],
+      ['Month-end transaction and support costs', -(f.technologyCost + f.supportCost + f.expansionOperatingCost)],
+      ['Month-end fixed operating costs', -(f.fixedOverhead + f.b2cFixed)],
+      ['Month-end operating result', f.operatingResult, 'total'],
+      [`Strategic investment during ${periodLabel}`, -periodInvestment],
+      [`External financing during ${periodLabel}`, periodFinancing],
+      [`Total cash change during ${periodLabel}`, periodCashChange, 'total']
+    ];
+    page.querySelector('.impact-finance').innerHTML = financeRows.map(r => `<tr class="${r[2] || ''}"><td>${r[0]}</td><td class="${r[1] >= 0 ? 'good' : 'bad'}">${money(r[1])}</td></tr>`).join('');
+
+    page.querySelector('.impact-scores').innerHTML = scoreMarkup([
+      ['Financial health', result.scores.financial, scoreDescription('financial', result.scores.financial)],
+      ['Mission alignment', result.scores.mission, scoreDescription('mission', result.scores.mission)],
+      ['Growth readiness', result.scores.growth, scoreDescription('growth', result.scores.growth)]
+    ]);
+  }
+
+  function impactNarrative(round, result) {
+    const f = result.final;
+    const d = state.decisions;
+    const financiallyPositive = f.operatingResult >= 0;
+    const cashPressure = f.liquidity < 0;
+    let headline = '', summary = '', takeaway = '', carry = '';
+
+    if (round === 1) {
+      if (d.service === 'mix') {
+        headline = financiallyPositive ? 'The mixed portfolio preserves stability, but ride-sharing remains expensive.' : 'The mixed portfolio protects diversification but does not resolve the underlying cost problem.';
+        summary = 'EVA retains both revenue streams and avoids a major transition, yet B2C insurance, support, and operating complexity continue to weigh on the monthly result.';
+        takeaway = 'Maintaining optionality is not the same as solving the problem. The next decision must address the technology cost structure without assuming that volume growth alone will create profitability.';
+      } else if (d.service === 'b2b') {
+        headline = financiallyPositive ? 'A B2B-first shift begins to improve the operating model.' : 'The B2B-first shift improves focus, but transition costs delay the benefit.';
+        summary = 'B2C overhead declines while delivery demand becomes a larger share of activity. The company experiences short-term implementation pressure but preserves a limited presence in its original market.';
+        takeaway = 'The direction is strategically coherent, but management must ensure that stronger B2B growth is not offset by platform capacity and technology costs.';
+      } else {
+        headline = financiallyPositive ? 'Exiting B2C produces a leaner platform, with a major strategic trade-off.' : 'Exiting B2C removes structural cost, but the transition consumes substantial cash.';
+        summary = 'Ride-sharing overhead falls sharply and resources move toward delivery. EVA becomes more concentrated in enterprise clients and gives up part of the market identity that established the brand.';
+        takeaway = 'A focused model can improve economics, but the recommendation must address concentration risk and explain why abandoning B2C is preferable to a managed reduction.';
+      }
+      carry = `Carried into Decision Point 2: EVA enters Month 10 with ${money(f.liquidity)} in liquidity and a monthly operating result of ${money(f.operatingResult)}.`;
+    }
+
+    if (round === 2) {
+      if (d.tech === 'blockchain') {
+        headline = financiallyPositive ? 'Blockchain continuity preserves EVA’s identity, although scale remains constrained.' : 'Retaining blockchain avoids disruption but leaves the cost structure largely unchanged.';
+        summary = 'EVA avoids a migration project and protects its transparency narrative. As demand grows, however, per-transaction technology costs and capacity limits remain a binding issue.';
+        takeaway = 'The safest implementation choice is not necessarily the safest business choice. The team should explain whether mission continuity justifies the financial and scalability constraint.';
+      } else if (d.tech === 'hybrid') {
+        headline = financiallyPositive ? 'The hybrid architecture creates a workable balance between efficiency and continuity.' : 'The hybrid architecture improves unit economics, but the migration period keeps cash under pressure.';
+        summary = 'High-volume processing moves toward the cloud while selected blockchain functions remain. Capacity and unit cost improve after a moderate implementation period.';
+        takeaway = 'A middle path can be compelling when it is operationally specific. The recommendation should identify which functions remain on blockchain and how the dual architecture will be governed.';
+      } else {
+        headline = financiallyPositive ? 'The SaaS migration creates the strongest operating leverage after a difficult transition.' : 'The SaaS migration improves the future model but creates acute near-term financing pressure.';
+        summary = 'Technology capacity increases and unit cost falls materially, but the nine-month migration creates reliability, investment, and identity risk.';
+        takeaway = 'The strategy may be financially rational, but it requires a credible implementation plan, funding source, and explanation of how EVA will preserve trust without blockchain as its core architecture.';
+      }
+      carry = `Carried into Decision Point 3: after 18 months, EVA has ${money(f.liquidity)} in liquidity, serves ${Math.round(f.demandServed*100)}% of core demand, and has a mission score of ${result.scores.mission}/100.`;
+    }
+
+    if (round === 3) {
+      if (d.governance === 'coop') {
+        headline = financiallyPositive ? 'The cooperative remains viable, but funding flexibility stays limited.' : 'The cooperative protects the mission while financial constraints remain unresolved.';
+        summary = 'Driver control and trust remain high, but EVA continues to operate with a limited operating share and without a new source of external financing.';
+        takeaway = 'Mission preservation is strategically valid only if the company can finance the plan. The final growth choice may need to prioritize capital efficiency.';
+      } else if (d.governance === 'govHybrid') {
+        headline = financiallyPositive ? 'Hybrid governance improves financial flexibility without fully abandoning member protections.' : 'Hybrid governance provides additional capital, but structural improvement remains incomplete.';
+        summary = 'EVA expands its operating share and gains access to illustrative external financing, while accepting more complex decision rights and a moderate decline in mission alignment.';
+        takeaway = 'The governance design must be concrete. A recommendation should specify which decisions remain protected for driver-members and which rights are granted to outside capital.';
+      } else {
+        headline = financiallyPositive ? 'Corporate conversion strengthens cash and operating flexibility at a high mission cost.' : 'Corporate conversion adds capital, but the business remains operationally fragile.';
+        summary = 'EVA gains the greatest financing capacity and a higher operating take rate. Driver retention and trust decline, weakening the original cooperative differentiation.';
+        takeaway = 'Capital access cannot be treated as a complete strategy. The team must explain whether the resulting company still has a defensible value proposition beyond being a smaller platform competitor.';
+      }
+      carry = `Carried into Decision Point 4: EVA enters its final nine months with ${money(f.liquidity)} in liquidity and growth readiness of ${result.scores.growth}/100.`;
+    }
+
+    if (round === 4) {
+      if (d.expansion === 'none') {
+        headline = financiallyPositive ? 'Consolidation protects cash and produces a more stable ending position.' : 'Consolidation reduces risk, but EVA still has not built a sustainable operating model.';
+        summary = 'EVA avoids new-market investment and focuses on the existing business. The strategy preserves control but limits long-term diversification and scale.';
+        takeaway = 'A deliberate pause can be a sound sequencing decision. The final recommendation should state what milestones must be achieved before expansion resumes.';
+      } else if (d.expansion === 'direct') {
+        headline = financiallyPositive ? 'Direct expansion creates strategic control, but the economics remain capital intensive.' : 'Direct expansion stretches liquidity before the new market reaches scale.';
+        summary = 'EVA retains the full customer relationship and operating model, but setup spending, local overhead, and regulatory execution create the highest financial burden.';
+        takeaway = 'Direct entry requires a clear market-selection thesis, staged investment gates, and sufficient financing to absorb a slow ramp.';
+      } else if (d.expansion === 'license') {
+        headline = financiallyPositive ? 'Licensing creates capital-efficient growth with reduced control.' : 'Licensing limits investment, but royalty economics are not sufficient to offset earlier constraints.';
+        summary = 'Partner transactions generate recurring fees with low operating burden. EVA becomes more dependent on contractual standards and partner execution to protect the brand.';
+        takeaway = 'The recommendation should include partner-selection criteria, service-level agreements, data governance, and a mechanism for terminating weak operators.';
+      } else {
+        headline = financiallyPositive ? 'The partnership model balances growth, economics, and operating influence.' : 'The partnership model moderates risk, but execution complexity remains material.';
+        summary = 'EVA shares setup responsibility and earns stronger economics than pure licensing while retaining more influence than a hands-off technology agreement.';
+        takeaway = 'The model is only as strong as the partnership design. Governance, incentives, and brand standards should be treated as central elements of the entry strategy.';
+      }
+      carry = `End-state: EVA finishes Month 36 with ${money(f.liquidity)} in liquidity, a monthly operating result of ${money(f.operatingResult)}, and an estimated ${Math.round(f.demandServed*100)}% of core demand served.`;
+    }
+    if (cashPressure) summary += ' The path also pushes modeled liquidity below zero, indicating that additional funding or slower sequencing would be required.';
+    return { headline, summary, takeaway, carry };
+  }
+
+  function scoreDescription(type, value) {
+    const levels = value >= 75 ? 'high' : value >= 55 ? 'moderate' : 'low';
+    const map = {
+      financial: { high: 'The company has a comparatively strong cash and operating position.', moderate: 'The financial position is workable but remains sensitive to execution.', low: 'Liquidity or operating losses create a material feasibility concern.' },
+      mission: { high: 'The strategy largely preserves driver equity, transparency, and member influence.', moderate: 'The strategy accepts visible mission trade-offs while retaining some founding principles.', low: 'The strategy substantially departs from EVA’s original cooperative and transparency model.' },
+      growth: { high: 'The service, technology, and capital structure can support meaningful scale.', moderate: 'Growth is possible, but at least one structural constraint remains.', low: 'The model prioritizes continuity or survival over scalable growth.' },
+      execution: { high: 'The number and complexity of simultaneous changes are manageable.', moderate: 'The plan requires careful sequencing and change management.', low: 'The strategy combines several high-risk transitions and may exceed organizational capacity.' }
+    };
+    return map[type][levels];
+  }
+
+  function scoreMarkup(items) {
+    return items.map(([label, value, desc]) => `<div class="score-row"><div class="top"><strong>${label}</strong><b>${value}/100</b></div><div class="bar"><span style="width:${value}%"></span></div><p>${desc}</p></div>`).join('');
+  }
+
+  function updateDecisionContext(round) {
+    if (round === 2) {
+      const f = state.snapshots[1].final;
+      document.getElementById('context2').innerHTML = `<strong>Situation after Month 9:</strong> EVA selected <strong>${labels.service[state.decisions.service]}</strong>. It now has <strong>${money(f.liquidity)}</strong> in liquidity and a monthly operating result of <strong>${money(f.operatingResult)}</strong>. Transaction growth is increasing pressure on the platform’s technology architecture.`;
+      document.getElementById('lockedService2').textContent = labels.service[state.decisions.service];
+      document.getElementById('lockedCash2').textContent = money(f.liquidity);
+      document.getElementById('lockedCf2').textContent = money(f.operatingResult);
+    }
+    if (round === 3) {
+      const f = state.snapshots[2].final;
+      document.getElementById('context3').innerHTML = `<strong>Situation after Month 18:</strong> EVA’s service and technology choices are producing a monthly operating result of <strong>${money(f.operatingResult)}</strong>. Investors must decide whether the current governance model provides sufficient control and return to support the next phase.`;
+      document.getElementById('lockedService3').textContent = labels.service[state.decisions.service];
+      document.getElementById('lockedTech3').textContent = labels.tech[state.decisions.tech];
+      document.getElementById('lockedCash3').textContent = money(f.liquidity);
+    }
+    if (round === 4) {
+      const f = state.snapshots[3].final;
+      document.getElementById('context4').innerHTML = `<strong>Situation after Month 27:</strong> EVA has completed three major business-model decisions and holds <strong>${money(f.liquidity)}</strong> in modeled liquidity. Management must now choose how aggressively to pursue growth while protecting the operating model it has created.`;
+      document.getElementById('lockedService4').textContent = labels.service[state.decisions.service];
+      document.getElementById('lockedTech4').textContent = labels.tech[state.decisions.tech];
+      document.getElementById('lockedGov4').textContent = labels.governance[state.decisions.governance];
+      document.getElementById('lockedCash4').textContent = money(f.liquidity);
+    }
+  }
+
+  document.getElementById('viewFinalBtn').addEventListener('click', () => {
+    state.latest = state.snapshots[4];
+    showPage(10);
+  });
+
+  function weightedOverall(scores) {
+    return Math.round(scores.financial * .35 + scores.mission * .25 + scores.growth * .25 + scores.execution * .15);
+  }
+
+  function pathwayKey(decisions) {
+    return [decisions.service, decisions.tech, decisions.governance, decisions.expansion].join('|');
+  }
+
+  function pathwayShortLabel(pathway) {
+    return `${labels.service[pathway.decisions.service]} · ${labels.tech[pathway.decisions.tech]} · ${labels.governance[pathway.decisions.governance]} · ${labels.expansion[pathway.decisions.expansion]}`;
+  }
+
+  function buildPathwayComparisons() {
+    const original = { ...state.decisions };
+    const pathways = [];
+    const options = {
+      service: ['mix', 'b2b', 'exit'],
+      tech: ['blockchain', 'hybrid', 'saas'],
+      governance: ['coop', 'govHybrid', 'corp'],
+      expansion: ['none', 'direct', 'license', 'franchise']
+    };
+    options.service.forEach(service => options.tech.forEach(tech => options.governance.forEach(governance => options.expansion.forEach(expansion => {
+      const decisions = { service, tech, governance, expansion };
+      state.decisions = decisions;
+      const result = simulate(36);
+      pathways.push({
+        key: pathwayKey(decisions),
+        decisions: { ...decisions },
+        scores: { ...result.scores },
+        overall: weightedOverall(result.scores),
+        liquidity: result.final.liquidity,
+        operatingResult: result.final.operatingResult
+      });
+    }))));
+    state.decisions = original;
+    return pathways;
+  }
+
+  function pathwayCompareMarkup(pathway, isCurrent) {
+    return `<div class="pathway-compare-card ${isCurrent ? 'current' : ''}">
+      <div class="compare-label">${isCurrent ? 'Your pathway' : 'Selected alternative'}</div>
+      <h3>${pathway.overall}/100 overall</h3>
+      <div class="pathway-decisions">
+        <span><strong>Service:</strong> ${labels.service[pathway.decisions.service]}</span>
+        <span><strong>Technology:</strong> ${labels.tech[pathway.decisions.tech]}</span>
+        <span><strong>Governance:</strong> ${labels.governance[pathway.decisions.governance]}</span>
+        <span><strong>Growth:</strong> ${labels.expansion[pathway.decisions.expansion]}</span>
+        <span><strong>Ending liquidity:</strong> ${money(pathway.liquidity)}</span>
+      </div>
+      <div class="compare-score-grid">
+        <div class="compare-score"><span>Financial</span><b>${pathway.scores.financial}</b></div>
+        <div class="compare-score"><span>Mission</span><b>${pathway.scores.mission}</b></div>
+        <div class="compare-score"><span>Growth</span><b>${pathway.scores.growth}</b></div>
+        <div class="compare-score"><span>Execution</span><b>${pathway.scores.execution}</b></div>
+      </div>
+    </div>`;
+  }
+
+  function renderPathwayComparison() {
+    const pathways = buildPathwayComparisons();
+    const currentKey = pathwayKey(state.decisions);
+    const current = pathways.find(p => p.key === currentKey);
+    const metric = document.getElementById('comparisonMetric').value;
+    const metricValue = p => metric === 'liquidity' ? p.liquidity : metric === 'overall' ? p.overall : p.scores[metric];
+    const sorted = [...pathways].sort((a, b) => metricValue(b) - metricValue(a) || b.overall - a.overall || b.liquidity - a.liquidity);
+    const currentRank = sorted.findIndex(p => p.key === currentKey) + 1;
+    const metricNames = { overall: 'overall score', financial: 'financial health', mission: 'mission alignment', growth: 'growth readiness', execution: 'execution feasibility', liquidity: 'ending liquidity' };
+    document.getElementById('comparisonSummary').innerHTML = `Your pathway ranks <strong>${currentRank} of ${pathways.length}</strong> by ${metricNames[metric]}. Use this comparison to identify which trade-offs changed the result—not simply to copy the numerically highest pathway.`;
+
+    const alternativeSelect = document.getElementById('alternativePathway');
+    const previousSelection = alternativeSelect.value;
+    const overallSorted = [...pathways].sort((a, b) => b.overall - a.overall || b.liquidity - a.liquidity);
+    alternativeSelect.innerHTML = overallSorted.map((p, idx) => ({ pathway: p, rank: idx + 1 })).filter(item => item.pathway.key !== currentKey).map(item => `<option value="${item.pathway.key}">#${item.rank} by overall score · ${item.pathway.overall}/100 · ${pathwayShortLabel(item.pathway)}</option>`).join('');
+    if (previousSelection && pathways.some(p => p.key === previousSelection) && previousSelection !== currentKey) alternativeSelect.value = previousSelection;
+    const alternative = pathways.find(p => p.key === alternativeSelect.value) || overallSorted.find(p => p.key !== currentKey);
+    document.getElementById('comparisonPair').innerHTML = pathwayCompareMarkup(current, true) + pathwayCompareMarkup(alternative, false);
+
+    let displayed = sorted.slice(0, 8);
+    if (!displayed.some(p => p.key === currentKey)) displayed = [...displayed.slice(0, 7), current];
+    displayed = displayed.sort((a, b) => sorted.findIndex(p => p.key === a.key) - sorted.findIndex(p => p.key === b.key));
+    document.getElementById('comparisonRows').innerHTML = displayed.map(p => {
+      const rank = sorted.findIndex(x => x.key === p.key) + 1;
+      return `<tr class="${p.key === currentKey ? 'current-path' : ''}">
+        <td class="num">${rank}${p.key === currentKey ? ' · You' : ''}</td>
+        <td class="pathway-cell"><strong>${labels.service[p.decisions.service]} → ${labels.tech[p.decisions.tech]}</strong><span>${labels.governance[p.decisions.governance]} → ${labels.expansion[p.decisions.expansion]}</span></td>
+        <td class="num">${p.overall}</td><td class="num">${p.scores.financial}</td><td class="num">${p.scores.mission}</td><td class="num">${p.scores.growth}</td><td class="num">${p.scores.execution}</td><td class="num">${money(p.liquidity)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function populateFinal() {
+    const r = state.latest || state.snapshots[4];
+    if (!r) return;
+    const s = r.scores;
+    const overall = weightedOverall(s);
+    document.getElementById('finalScore').textContent = overall;
+    let band, bandText;
+    if (overall >= 80) { band = 'Strong strategic position'; bandText = 'The pathway is comparatively sustainable and coherent, although it still requires active risk management.'; }
+    else if (overall >= 65) { band = 'Viable with material trade-offs'; bandText = 'The strategy can work, but important financial, mission, or execution constraints remain.'; }
+    else if (overall >= 50) { band = 'Fragile strategic position'; bandText = 'The choices create a plausible direction, but the resulting model is vulnerable and requires revision or added resources.'; }
+    else { band = 'Strategy requires redesign'; bandText = 'The modeled pathway does not adequately resolve EVA’s financial and strategic constraints.'; }
+    document.getElementById('finalBand').textContent = band;
+    document.getElementById('finalBandText').textContent = bandText;
+    document.getElementById('finalBreakdown').innerHTML = scoreMarkup([
+      ['Financial health · 35%', s.financial, scoreDescription('financial', s.financial)],
+      ['Mission alignment · 25%', s.mission, scoreDescription('mission', s.mission)],
+      ['Growth readiness · 25%', s.growth, scoreDescription('growth', s.growth)],
+      ['Execution feasibility · 15%', s.execution, scoreDescription('execution', s.execution)]
+    ]);
+
+    const timelineData = [
+      ['Months 1–9', labels.service[state.decisions.service], state.snapshots[1].final.liquidity],
+      ['Months 10–18', labels.tech[state.decisions.tech], state.snapshots[2].final.liquidity],
+      ['Months 19–27', labels.governance[state.decisions.governance], state.snapshots[3].final.liquidity],
+      ['Months 28–36', labels.expansion[state.decisions.expansion], state.snapshots[4].final.liquidity]
+    ];
+    document.getElementById('finalTimeline').innerHTML = timelineData.map(x => `<div class="timeline-card"><span>${x[0]}</span><strong>${x[1]}</strong><b class="${x[2] >= 0 ? 'good' : 'bad'}">${money(x[2])}</b></div>`).join('');
+
+    const best = Object.entries(s).sort((a,b) => b[1]-a[1])[0];
+    const worst = Object.entries(s).sort((a,b) => a[1]-b[1])[0];
+    const positiveMap = {
+      financial: 'Your pathway produced the strongest relative result in financial health. The combination of operating economics, capital requirements, and financing created a more sustainable end position.',
+      mission: 'Your pathway most strongly preserved EVA’s founding principles. Driver equity, transparency, and member influence remain meaningful sources of differentiation.',
+      growth: 'Your pathway created the strongest relative growth platform. The service, technology, governance, and market-entry choices support a larger operating footprint.',
+      execution: 'Your pathway maintained comparatively manageable implementation complexity. The organization is less likely to be overwhelmed by simultaneous change.'
+    };
+    const riskMap = {
+      financial: 'Financial resilience is the weakest element. Revisit the pace of investment, operating take rate, service mix, or funding plan before recommending execution.',
+      mission: 'Mission alignment is the weakest element. The recommendation should explain how EVA will preserve driver trust and differentiation after the selected structural changes.',
+      growth: 'Growth readiness is the weakest element. The plan may stabilize the business without solving its longer-term scale and market-concentration problem.',
+      execution: 'Execution feasibility is the weakest element. The plan likely combines too many transitions or requires capabilities that EVA may not yet possess.'
+    };
+    document.getElementById('positiveFeedback').textContent = positiveMap[best[0]];
+    document.getElementById('riskFeedback').textContent = riskMap[worst[0]];
+    document.getElementById('recommendationPrompt').textContent = `Prepare a concise recommendation that states your four decisions, explains why the combined pathway is internally coherent, identifies the most important implementation risk, and proposes one measurable milestone for the first 90 days.`;
+    drawFinalChart(r.rows);
+    renderPathwayComparison();
+  }
+
+  function drawFinalChart(rows) {
+    const canvas = document.getElementById('finalChart');
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(640, Math.round(rect.width * dpr));
+    canvas.height = Math.max(280, Math.round(rect.height * dpr));
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const w = rect.width, h = rect.height;
+    ctx.clearRect(0,0,w,h);
+    const pad = { l: 58, r: 18, t: 18, b: 34 };
+    const plotW = w-pad.l-pad.r, plotH = h-pad.t-pad.b;
+    const liquidity = [fixed.startingCash, ...rows.map(r=>r.liquidity)];
+    const cashChange = [0, ...rows.map(r=>r.netCashChange)];
+    let min = Math.min(0, ...liquidity, ...cashChange), max = Math.max(0, ...liquidity, ...cashChange);
+    const span = Math.max(1, max-min); min -= span*.08; max += span*.08;
+    const x = idx => pad.l + idx/(rows.length)*plotW;
+    const y = val => pad.t + (max-val)/(max-min)*plotH;
+    ctx.font = '11px Inter, system-ui, sans-serif';
+    ctx.strokeStyle = '#e1e8ea'; ctx.fillStyle = '#60757c'; ctx.lineWidth = 1;
+    for (let t=0;t<=4;t++) { const val=min+(max-min)*t/4, yy=y(val); ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();ctx.fillText(money(val),4,yy+4); }
+    ctx.strokeStyle='#b64040';ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(pad.l,y(0));ctx.lineTo(w-pad.r,y(0));ctx.stroke();ctx.setLineDash([]);
+    [1,9,18,27,36].forEach(m => { ctx.fillStyle='#60757c';ctx.fillText(`M${m}`,x(m)-9,h-10); });
+    draw(liquidity,'#007f79',2.6); draw(cashChange,'#173c4a',1.8);
+    function draw(vals,color,width){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();vals.forEach((v,idx)=>{const xx=x(idx),yy=y(v);idx?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});ctx.stroke();}
+  }
+
+  document.getElementById('comparisonMetric').addEventListener('change', renderPathwayComparison);
+  document.getElementById('alternativePathway').addEventListener('change', () => {
+    const pathways = buildPathwayComparisons();
+    const current = pathways.find(p => p.key === pathwayKey(state.decisions));
+    const alternative = pathways.find(p => p.key === document.getElementById('alternativePathway').value);
+    if (current && alternative) document.getElementById('comparisonPair').innerHTML = pathwayCompareMarkup(current, true) + pathwayCompareMarkup(alternative, false);
+  });
+
+  function populateAssumptions() {
+    document.getElementById('userAssumptionRows').innerHTML = [
+      ['Average B2C fare', `$${state.inputs.b2cFare}`, 'Translates completed passenger rides into transaction value.'],
+      ['Average B2B fare', `$${state.inputs.b2bValue}`, 'Translates completed enterprise deliveries into transaction value.'],
+      ['Jobs per active driver', `${state.inputs.jobsPerDriver} per month`, 'Sets the operating capacity contributed by each active driver.'],
+      ['B2B monthly growth', `${state.inputs.b2bGrowth.toFixed(1)}%`, 'Compounds requested enterprise delivery demand.']
+    ].map(r => `<tr><td>${r[0]}</td><td><strong>${r[1]}</strong></td><td>${r[2]}</td></tr>`).join('');
+  }
+
+  function restart() {
+    const okay = confirm('Restart the simulation? All locked decisions and results will be cleared.');
+    if (!okay) return;
+    state.page = 0;
+    state.decisions = { service: null, tech: null, governance: null, expansion: null };
+    state.locked = { service: false, tech: false, governance: false, expansion: false };
+    state.inputs = { b2cFare: 25, b2bValue: 20, jobsPerDriver: 80, b2bGrowth: 1.5 };
+    state.snapshots = {};
+    state.latest = null;
+    document.querySelectorAll('.decision-card').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('.lock-btn').forEach(b => b.disabled = true);
+    Object.entries(inputBindings).forEach(([id, config]) => {
+      document.getElementById(id).value = state.inputs[id];
+      document.getElementById(id).disabled = false;
+      document.getElementById(config.out).textContent = config.format(state.inputs[id]);
+    });
+    showPage(0);
+    toast('Simulation restarted.');
+  }
+
+  ['restartTopBtn','restartFinalBtn','restartAssumptionsBtn'].forEach(id => document.getElementById(id).addEventListener('click', restart));
+  window.addEventListener('resize', () => { if (state.page === 10 && state.latest) drawFinalChart(state.latest.rows); });
+
+  function toast(message) {
+    const el = document.getElementById('toast');
+    el.textContent = message; el.classList.add('show');
+    clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.remove('show'), 2200);
+  }
+})();
+</script>
+</body>
+</html>
